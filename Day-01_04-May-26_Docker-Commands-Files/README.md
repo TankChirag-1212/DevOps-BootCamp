@@ -1,6 +1,6 @@
 # Day 01 — Docker Commands & AWS Setup
 
-## Section 02-01: Setup AWS Environment & Provision EC2 with Terraform
+## Section 02_01: Setup AWS Environment & Provision EC2 with Terraform
 
 Provisioned an EC2 instance using Terraform with the following configuration:
 
@@ -78,7 +78,7 @@ docker ps -a
 
 ---
 
-## Section 02-02: Pull & Run Docker Image from Docker Hub
+## Section 02_02: Pull & Run Docker Image from Docker Hub
 
 Pulled a sample retail store web application from Docker Hub:
 
@@ -128,6 +128,71 @@ docker rmi stacksimplify/retail-store-sample-ui:1.0.0
 
 ---
 
-## Section 02-03: Build Docker Image & Push to Docker Hub
+## Section 02_03: Build Docker Image & Push to Docker Hub
 
-> *(Coming soon)*
+Logged into Docker Hub on the EC2 instance using a PAT (Personal Access Token) for authentication:
+
+```bash
+docker login -u chirag1212
+```
+
+Fetched the retail store sample app source code at release `v1.5.0` from GitHub:
+
+```bash
+wget https://github.com/aws-containers/retail-store-sample-app/archive/refs/tags/v1.5.0.zip
+unzip v1.5.0.zip
+```
+
+Made changes to the UI in:
+```bash
+vim retail-store-sample-app-1.5.0/src/ui/src/main/resources/templates/home.html
+```
+
+Built the new Docker image from `./src/ui` (which contains the Dockerfile):
+
+```bash
+cd retail-store-sample-app-1.5.0/src/ui
+docker build -t chirag1212/devops-bootcamp:retail-store-v3_Day_01 .
+```
+
+![Docker Login](images/Screenshot%202026-05-04%20210931.png)
+
+Pushed the image to Docker Hub:
+
+```bash
+docker push chirag1212/devops-bootcamp:retail-store-v3_Day_01
+```
+
+![Code Changes & Build](images/Screenshot%202026-05-04%20211126.png)
+
+Ran a container from the newly pushed image to validate the changes:
+
+```bash
+docker run --name retail-store-v3 -p 3000:8080 -d chirag1212/devops-bootcamp:retail-store-v3_Day_01
+```
+
+Accessed `http://<ec2-public-ip>:3000` — the changes made in `home.html` were reflecting as expected.
+
+![Docker Push](images/Screenshot%202026-05-04%20211334.png)
+
+**Cleanup:**
+
+```bash
+docker ps -a
+docker images
+docker rm -f $(docker ps -qa)
+docker rmi $(docker images -q)
+```
+
+![Web App with Changes](images/Screenshot%202026-05-04%20211622.png)
+
+---
+
+## Summary
+
+On Day 01, the focus was on setting up a cloud environment and getting hands-on with Docker from scratch.
+
+- Provisioned an **EC2 instance on AWS** (ap-south-1) using **Terraform** — wrote reusable config files with variables, security groups, and auto-install scripts for Docker via `user_data`
+- **SSH'd into the instance**, verified connectivity, and manually installed Docker, then added the user to the docker group for passwordless access
+- Pulled a pre-built **retail store web app** image from Docker Hub, ran it as a container on port 3000, accessed it via browser, exec'd into it, and practiced stop/start/cleanup commands
+- **Built a custom Docker image** by cloning the retail store app source (v1.5.0), modifying the `home.html` UI file, building the image locally, pushing it to Docker Hub, and validating the changes live in the browser

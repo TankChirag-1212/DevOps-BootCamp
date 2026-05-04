@@ -34,6 +34,11 @@ resource "aws_instance" "web" {
   key_name               = var.key_pair_name
   vpc_security_group_ids = [aws_security_group.allow_ssh.id]
 
+  user_data = <<-EOF
+    #!/bin/bash
+    ${file("${path.module}/../scripts/docker-install.sh")}
+  EOF
+
   root_block_device {
     volume_size = 30
   }
