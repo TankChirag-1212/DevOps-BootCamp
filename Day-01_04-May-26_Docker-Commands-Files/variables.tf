@@ -8,11 +8,6 @@ variable "ami_id_amd64" {
   type        = string
 }
 
-variable "ami_id_arm64" {
-  description = "Name of the existing AWS key pair to use for SSH access"
-  type        = string
-}
-
 variable "My_IP" {
   description = "My ip address for security group inbound rules"
   type        = string
