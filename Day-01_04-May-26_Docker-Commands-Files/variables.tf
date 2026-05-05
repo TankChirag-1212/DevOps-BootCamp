@@ -3,13 +3,23 @@ variable "key_pair_name" {
   type        = string
 }
 
-variable "ami_id" {
+variable "ami_id_amd64" {
+  description = "Name of the existing AWS key pair to use for SSH access"
+  type        = string
+}
+
+variable "ami_id_arm64" {
   description = "Name of the existing AWS key pair to use for SSH access"
   type        = string
 }
 
 variable "My_IP" {
   description = "My ip address for security group inbound rules"
+  type        = string
+}
+
+variable "Office_IP" {
+  description = "My ip address at Office for security group inbound rules"
   type        = string
 }
 
