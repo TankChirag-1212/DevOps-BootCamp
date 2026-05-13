@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  labels:
+    app.kubernetes.io/name: catalog
+    app.kubernetes.io/instance: catalog
+    app.kubernetes.io/component: mysql
+    app.kubernetes.io/owner: chirag-devops-bootcamp
+spec:
+  replicas: 2
+  serviceName: mysql
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: catalog
+      app.kubernetes.io/instance: catalog
+      app.kubernetes.io/component: mysql
+      app.kubernetes.io/owner: chirag-devops-bootcamp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: catalog
+        app.kubernetes.io/instance: catalog
+        app.kubernetes.io/component: mysql
+        app.kubernetes.io/owner: chirag-devops-bootcamp
+    spec:
+      containers:
+        - name: mysql
+          image: "public.ecr.aws/docker/library/mysql:8.0"
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: mysql-config
+          ports:
+            - name: mysql
+              containerPort: 3306
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+      volumes:
+        - name: data
+          emptyDir: {}
