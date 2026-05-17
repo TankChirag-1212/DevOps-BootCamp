@@ -1,0 +1,25 @@
+
+# Source: chirag-devops-bootcamp-cart-chart/templates/dynamodb-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: carts-dynamodb
+  labels:
+    helm.sh/chart: carts-1.2.4
+    app.kubernetes.io/name: carts
+    app.kubernetes.io/instance: carts
+    app.kubernetes.io/component: dynamodb
+    app.kubernetes.io/owner: chirag-devops-bootcamp
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: dynamodb
+      protocol: TCP
+      name: tcp-dynamodb
+  selector:
+    app.kubernetes.io/name: carts
+    app.kubernetes.io/instance: carts
+    app.kubernetes.io/component: dynamodb
+    app.kubernetes.io/owner: chirag-devops-bootcamp
