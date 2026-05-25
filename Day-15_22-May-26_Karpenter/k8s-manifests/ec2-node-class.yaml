@@ -1,0 +1,33 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default-ec2nodeclass
+spec:
+  # Recommended for EKS-managed Amazon Linux 2023 AMIs
+  amiFamily: AL2023
+  amiSelectorTerms:
+    - alias: al2023@latest
+  # Node IAM role created in Terraform
+  role: "arn:aws:iam::454143665149:role/chirag-karpenter-node-role"
+  # Auto-discover subnets (your cluster tags)
+  subnetSelectorTerms:
+    - id: [subnet-xxxxxx, subnet-xxxxxx]
+  # Auto-discover security groups
+  securityGroupSelectorTerms:
+    - tags:
+        kubernetes.io/cluster/chirag-eks-cluster: owned
+  # Required for Karpenter auto-discovery of resources
+  tags:
+    karpenter.sh/discovery: chirag-eks-cluster
+  # Recommended EBS configuration
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 20Gi
+        volumeType: gp3
+        encrypted: true
+        deleteOnTermination: true
+  # Recommended IMDS Metadata options
+  metadataOptions:
+    httpTokens: required
+    httpPutResponseHopLimit: 2
