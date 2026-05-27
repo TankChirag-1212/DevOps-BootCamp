@@ -9,17 +9,15 @@
 | Feature | Karpenter | Cluster Autoscaler |
 |---|---|---|
 | **Provisioning speed** | 30–60 seconds | 2–5 minutes |
-| **Instance selection** | Intelligent — picks optimal type | Limited to predefined node groups |
+| **Instance selection** | Intelligent — picks optimal type via bin-packing | Limited to predefined node groups |
 | **Consolidation** | Automatic, configurable | Manual or slow |
 | **Spot support** | Native, with interruption handling | Basic |
 | **ASG dependency** | None — direct EC2 API | Required |
 
-The traditional Cluster Autoscaler scales based on node groups — you must pre-define instance types and sizes upfront. Karpenter eliminates this constraint entirely by calling the EC2 API directly and selecting the optimal instance type based on actual pod resource requests.
-
 ### Provisioning Flow
 
 ```
-Unschedulable Pod detected
+Unschedulable pod detected
         ↓
 Karpenter analyzes pod requirements (CPU, memory, nodeSelector, affinity)
         ↓
@@ -34,205 +32,208 @@ Pod scheduled on new node
 
 ---
 
-## Topic 02: Terraform Setup — Supporting AWS Resources
+## Topic 02: Terraform Project Structure
 
-Karpenter requires several AWS resources beyond the EKS cluster itself. These are provisioned via Terraform alongside the Helm install:
+The Karpenter Terraform project extends the Day-12 EKS cluster setup by adding Karpenter-specific IAM roles, SQS queue, EventBridge rules, and the Helm release:
 
-| Resource | Purpose |
+```
+Terraform-files/
+├── vpc/                          # VPC, subnets, route tables
+├── eks/                          # EKS cluster, node group, add-ons, Pod Identity Associations
+├── iam/                          # All IAM roles — adds karpenter-controller-role and karpenter-node-iam-role
+├── main.tf                       # Root module
+├── data.tf                       # Karpenter controller IAM policy document
+├── karpenter-sqs-eventbridge.tf  # SQS interruption queue + 4 EventBridge rules
+├── helm-install.tf               # Karpenter Helm release alongside LBC, CSI, ASCP
+├── providers.tf
+├── variables.tf
+├── outputs.tf
+└── terraform.tfvars
+```
+
+---
+
+## Topic 03: IAM Roles for Karpenter
+
+Karpenter requires two separate IAM roles with distinct purposes:
+
+### Controller Role (`karpenter-controller-role`)
+
+Used by the Karpenter controller pod itself. Grants permissions to call EC2, SQS, and IAM APIs to provision and manage nodes. Linked to the `karpenter-sa` Kubernetes ServiceAccount via a Pod Identity Association.
+
+### Node Role (`karpenter-node-role`)
+
+Assigned to every EC2 instance that Karpenter launches, so the node can join the EKS cluster. Attaches four AWS managed policies:
+
+| Policy | Purpose |
 |---|---|
-| **SQS Queue** | Receives Spot interruption and EC2 lifecycle events from EventBridge |
-| **EventBridge Rules** | Routes AWS events (Spot warnings, rebalance, state changes, health events) to the SQS queue |
-| **IAM Role (Controller)** | Allows Karpenter to call EC2, SQS, and IAM APIs to provision and manage nodes |
-| **IAM Role (Node)** | Assigned to EC2 instances that Karpenter launches, so they can join the cluster |
-| **Pod Identity Association** | Maps Karpenter's `karpenter-sa` ServiceAccount to the controller IAM role |
+| `AmazonEKSWorkerNodePolicy` | Allows node to register with the EKS cluster |
+| `AmazonEKS_CNI_Policy` | Allows the VPC CNI plugin to manage pod networking |
+| `AmazonEC2ContainerRegistryPullOnly` | Allows pulling container images from ECR |
+| `AmazonSSMManagedInstanceCore` | Enables SSM Session Manager access to nodes |
 
-### EventBridge Rules
+The node role ARN is referenced directly in the `EC2NodeClass` manifest so Karpenter knows which role to assign when launching instances.
 
-Four EventBridge rules route events into the Karpenter SQS queue:
+---
 
-- **EC2 Spot Instance Interruption Warning** — 2-minute notice before a Spot instance is reclaimed
-- **EC2 Instance Rebalance Recommendation** — early warning before a potential interruption
-- **EC2 Instance State-change Notification** — instance stopping or terminating
-- **AWS Health Event** — AWS-scheduled maintenance events
+## Topic 04: SQS & EventBridge for Spot Interruption Handling
 
-### Critical Subnet Tag
+Karpenter handles Spot interruptions gracefully by polling an SQS queue that receives events from EventBridge. Four EventBridge rules route AWS events into the queue:
+
+| EventBridge Rule | Event | Purpose |
+|---|---|---|
+| `k-spot` | EC2 Spot Instance Interruption Warning | 2-minute notice before Spot reclaim |
+| `k-rebal` | EC2 Instance Rebalance Recommendation | Early warning before potential interruption |
+| `k-state` | EC2 Instance State-change Notification | Instance stopping or terminating |
+| `k-health` | AWS Health Event | AWS-scheduled maintenance events |
+
+When Karpenter detects an interruption warning, it **proactively provisions a replacement node before draining the old one** — this is what enables zero-downtime Spot migrations.
+
+---
+
+## Topic 05: Karpenter Core Kubernetes Resources
+
+Karpenter introduces two custom resource definitions (CRDs):
+
+### EC2NodeClass — Node Template
+
+Defines **how** nodes are provisioned — AMI, subnets, security groups, disk, and metadata options. The `role` field references the Node IAM role ARN. `httpTokens: required` enforces IMDSv2 on all Karpenter-launched nodes. EBS volumes are configured as `gp3`, 20Gi, encrypted.
+
+### NodePool — Scaling Policy
+
+Defines **what** nodes to provision. Key fields:
+
+- `nodeClassRef` — links the NodePool to its EC2NodeClass
+- `requirements` — label-based constraints on arch, OS, capacity type, instance family, instance size, and AZ
+- `limits.cpu` — cluster-wide cap on total CPU Karpenter can provision; prevents runaway scaling costs
+- `disruption.consolidationPolicy: WhenEmptyOrUnderutilized` — consolidates nodes that are empty or can be packed onto fewer nodes
+- `disruption.consolidateAfter: 30s` — how long Karpenter waits after detecting underutilization before acting
+
+### On-Demand NodePool vs Spot NodePool
+
+| | On-Demand NodePool | Spot NodePool |
+|---|---|---|
+| `capacity-type` | `on-demand` | `spot` |
+| Instance families | `t3`, `t3a` | `t3`, `t3a`, `t2`, `c5a`, `c6a` |
+| Instance sizes | `micro` to `large` | `micro` to `large` |
+
+The Spot NodePool intentionally specifies more instance families — Spot capacity fluctuates by instance type and AZ, so wider diversity means Karpenter can always find available capacity.
+
+### NodeClaim — Individual Node Request
+
+Auto-created by Karpenter (never written manually). Each NodeClaim represents one EC2 instance being provisioned. Created when pods are unschedulable, deleted when nodes are consolidated or terminated.
+
+---
+
+## Topic 06: Critical Subnet Tag
 
 Subnets used by Karpenter must be tagged with `owned`, not `shared`:
 
 - `shared` → EKS control plane can use the subnet, but **Karpenter cannot launch nodes into it**
 - `owned` → Full access for Karpenter, managed node groups, and the control plane
 
-This is the most common misconfiguration when setting up Karpenter — always use `owned`.
+This is the most common misconfiguration when setting up Karpenter.
 
 ---
 
-## Topic 03: Karpenter Core Kubernetes Resources
+## Lab Implementation
 
-Karpenter introduces two custom resource definitions (CRDs) that replace the concept of node groups:
+### 1. Provision EKS Cluster with Karpenter (Terraform)
 
-### EC2NodeClass — Node Template
+Provisioned the full infrastructure — VPC, EKS cluster, add-ons, IAM roles, SQS queue, EventBridge rules, and Karpenter Helm release — in a single `terraform apply`:
 
-Defines **how** nodes are provisioned — the AMI, subnets, security groups, disk configuration, and metadata options. Think of it as the launch template for Karpenter-managed nodes.
+```bash
+cd Day-15_22-May-26_Karpenter/Terraform-files
 
-Key fields:
-- `amiFamily: AL2023` — uses Amazon Linux 2023, the current recommended EKS AMI
-- `role` — the Node IAM role ARN assigned to every EC2 instance Karpenter launches
-- `subnetSelectorTerms` — which subnets Karpenter can launch nodes into (selected by ID or tags)
-- `securityGroupSelectorTerms` — security groups applied to launched nodes, selected by cluster tag
-- `blockDeviceMappings` — EBS root volume config; `gp3`, 20Gi, `encrypted: true` is the recommended baseline
-- `metadataOptions.httpTokens: required` — enforces IMDSv2 on all Karpenter-launched nodes
+terraform init
+terraform validate
+terraform plan
+terraform apply -auto-approve
 
-### NodePool — Scaling Policy
+terraform output
+```
 
-Defines **what** nodes to provision — instance families, sizes, capacity type (On-Demand or Spot), AZ constraints, cluster-wide CPU limits, and consolidation behaviour.
+Configured kubectl and verified all add-ons and the Karpenter controller pod were running:
 
-Key fields:
-- `nodeClassRef` — links the NodePool to its EC2NodeClass
-- `requirements` — a list of label-based constraints (arch, OS, capacity type, instance family, instance size, AZ)
-- `limits.cpu` — cluster-wide cap on total CPU Karpenter can provision; prevents runaway scaling costs
-- `disruption.consolidationPolicy` — `WhenEmptyOrUnderutilized` consolidates nodes that are empty or can be packed onto fewer nodes; `WhenEmpty` only consolidates fully empty nodes
-- `disruption.consolidateAfter` — how long Karpenter waits after detecting underutilization before acting
+```bash
+aws eks update-kubeconfig --region ap-south-1 --name chirag-eks-cluster
 
-### NodeClaim — Individual Node Request
+kubectl get nodes
+kubectl get pods -n kube-system
+```
 
-Auto-created by Karpenter (never written manually). Each NodeClaim represents one EC2 instance being provisioned. They are created when pods are unschedulable and deleted when nodes are consolidated or terminated.
+![EKS cluster nodes and Karpenter controller running](images/Screenshot%202026-05-26%20230919.png)
 
 ---
 
-## Topic 04: On-Demand Autoscaling
+### 2. Deploy EC2NodeClass & NodePools
 
-When pods are created with resource requests that exceed available cluster capacity, Karpenter detects them as unschedulable and provisions new On-Demand nodes to fit them.
+Deployed the three Karpenter CRD manifests to configure how and what nodes Karpenter should provision:
 
-Karpenter uses **intelligent bin-packing** — it picks the smallest instance type that satisfies the combined resource requests of all pending pods, not the largest available. This is something the Cluster Autoscaler cannot do.
+```bash
+kubectl apply -f k8s-manifests/ec2-node-class.yaml
+kubectl apply -f k8s-manifests/node-pool-ondemand.yaml
+kubectl apply -f k8s-manifests/node-pool-spot.yaml
 
-### Scale-Down & Consolidation
-
-When pods are scaled down and nodes become underutilized, Karpenter:
-
-1. Waits for `consolidateAfter` duration (e.g. 30s)
-2. Cordons the node (marks it unschedulable for new pods)
-3. Drains the node (evicts pods gracefully, respecting PodDisruptionBudgets)
-4. Reschedules evicted pods onto remaining nodes
-5. Terminates the EC2 instance and deletes the NodeClaim
-
-To force pods onto On-Demand nodes specifically, add a `nodeSelector` to the pod spec:
-
-```yaml
-nodeSelector:
-  karpenter.sh/capacity-type: on-demand
+# Verify
+kubectl get ec2nodeclass
+kubectl get nodepool
 ```
+
+![EC2NodeClass and NodePools created](images/Screenshot%202026-05-26%20231030.png)
 
 ---
 
-## Topic 05: Spot Instances
+### 3. Test On-Demand Autoscaling
 
-Spot instances are spare AWS compute capacity available at up to **70% discount** compared to On-Demand pricing. The trade-off is that AWS can reclaim them with a **2-minute warning** when On-Demand demand increases.
+Deployed a test workload to trigger Karpenter node provisioning. The deployment creates 5 pods each requesting 500m CPU and 256Mi memory, with a `nodeSelector` forcing them onto On-Demand nodes:
 
-### Spot NodePool vs On-Demand NodePool
-
-The Spot NodePool uses `karpenter.sh/capacity-type: spot` in its requirements and intentionally specifies a **wider range of instance families and sizes**:
-
-```
-On-Demand NodePool: t3, t3a — 2 families
-Spot NodePool:      t3, t3a, t2, c5a, c6a — 5 families, micro to large
+```bash
+kubectl apply -f k8s-manifests/test-deployment.yaml
 ```
 
-More instance diversity is critical for Spot — Spot capacity fluctuates by instance type and AZ. A wider selection means Karpenter can always find available capacity and avoids `InsufficientInstanceCapacity` errors.
+Watched Karpenter detect the unschedulable pods, create NodeClaims, and provision new EC2 instances:
 
-To force pods onto Spot nodes:
+```bash
+# Watch NodeClaims being created
+kubectl get nodeclaims
 
-```yaml
-nodeSelector:
-  karpenter.sh/capacity-type: spot
+# Watch new nodes joining the cluster
+kubectl get nodes
+
+# Verify pods scheduled on Karpenter nodes
+kubectl get pods
 ```
 
-### When to Use Spot vs On-Demand
+Karpenter selected the optimal instance type based on the combined resource requests (5 × 500m CPU = 2.5 vCPU needed) and provisioned nodes in approximately 30–60 seconds.
 
-| Use Case | Recommended |
-|---|---|
-| Production databases / stateful workloads | On-Demand |
-| Stateless web apps with 3+ replicas | Spot ✅ |
-| Single-replica critical services | On-Demand |
-| CI/CD pipelines | Spot ✅ |
-| Batch processing | Spot ✅ |
-| Dev/test environments | Spot ✅ |
+![NodeClaims created and pods scheduled on Karpenter nodes](images/Screenshot%202026-05-26%20232123.png)
 
 ---
 
-## Topic 06: Spot Interruption Handling
+### 4. Cleanup
 
-When AWS decides to reclaim a Spot instance, it sends a 2-minute warning. Without proper handling, pods get hard-killed and the service goes down. Karpenter handles this gracefully using the SQS queue set up in Terraform.
+Deleted all Kubernetes resources first — Karpenter automatically terminates the EC2 instances it provisioned when the NodePools and NodeClaims are removed:
 
-### Interruption Flow
+```bash
+kubectl delete -f k8s-manifests/
 
-```
-T=0s:   AWS sends interruption warning → EventBridge → SQS queue
-T=~10s: Karpenter polls SQS, detects the message
-T=~10s: Karpenter cordons the node (stops new pod scheduling)
-T=~10s: Karpenter provisions a REPLACEMENT node PROACTIVELY ← key
-T=~50s: New node joins the cluster
-T=~50s: Karpenter drains the old node (respects PodDisruptionBudgets)
-T=~60s: Pods rescheduled to new node
-T=120s: Old instance terminates
+# Verify nodes and Karpenter resources are gone
+kubectl get nodes
+kubectl get pods
+kubectl get ec2nodeclass
+kubectl get nodepool
+kubectl get nodeclaims
 ```
 
-The critical insight is that Karpenter starts provisioning the **replacement node before draining the old one**. This proactive approach is what enables zero downtime during interruptions.
+Then destroyed all Terraform-managed infrastructure:
 
----
+```bash
+terraform destroy -auto-approve
 
-## Topic 07: PodDisruptionBudget — Zero Downtime on Spot
-
-A **PodDisruptionBudget (PDB)** is a Kubernetes resource that limits how many pods of a deployment can be unavailable at the same time during voluntary disruptions (like node drains).
-
-Without a PDB, Karpenter drains a node by evicting all pods at once — causing a service outage until they reschedule. With a PDB, Karpenter is forced to evict pods gradually, keeping a minimum number running throughout.
-
-```yaml
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: my-app-pdb
-spec:
-  minAvailable: 3
-  selector:
-    matchLabels:
-      app: my-app
+# Verify no resources remain
+terraform state list
 ```
-
-**Without PDB:** All 5 pods evicted simultaneously → 0/5 running → service down for ~40 seconds
-
-**With PDB (`minAvailable: 3`):** Karpenter can only evict 2 pods at a time → 3/5 still running → service stays up throughout the migration
-
-### terminationGracePeriodSeconds
-
-Setting `terminationGracePeriodSeconds: 30` on pods gives them time to stop accepting connections, complete in-flight requests, close database connections, and flush logs before being force-killed. This should be kept under 90 seconds to leave buffer before AWS force-terminates the instance at the 120-second mark.
-
-### The Production Formula
-
-```
-Karpenter + PodDisruptionBudget + terminationGracePeriodSeconds
-= 70% cost savings + zero downtime
-```
-
----
-
-## Topic 08: Terraform Project Structure
-
-The Karpenter Terraform project extends the Day-12 structure by adding Karpenter-specific resources:
-
-```
-Terraform-files/
-├── vpc/                          # VPC and subnet configuration
-├── eks/                          # EKS cluster, node group, add-ons, Pod Identity Associations
-│   └── eks-addons.tf             # Includes Karpenter Pod Identity Association
-├── iam/                          # IAM roles — adds karpenter-controller-role and karpenter-node-role
-├── main.tf                       # Root module — passes Karpenter role ARNs to eks module
-├── karpenter-sqs-eventbridge.tf  # SQS queue + 4 EventBridge rules
-├── helm-install.tf               # Karpenter Helm release added alongside LBC, CSI, ASCP
-├── data.tf                       # Karpenter controller IAM policy document
-└── terraform.tfvars
-```
-
-The Karpenter Helm release is installed via Terraform with the cluster name, cluster endpoint, and SQS queue name passed as `set` values — so Karpenter knows which cluster to manage and which queue to poll for interruption events.
 
 ---
 
@@ -241,9 +242,9 @@ The Karpenter Helm release is installed via Terraform with the cluster name, clu
 Day 15 focused on Karpenter — a modern, intelligent cluster autoscaler that replaces the traditional Cluster Autoscaler for EKS workloads.
 
 - **Karpenter vs Cluster Autoscaler** — Karpenter provisions nodes in 30–60 seconds (vs 2–5 minutes), selects optimal instance types via bin-packing, and requires no pre-configured ASGs
-- **EC2NodeClass** — defines how nodes are provisioned (AMI, subnets, security groups, disk, IMDSv2); one class can be shared across multiple NodePools
+- **Two IAM roles** — the controller role grants Karpenter permission to call AWS APIs; the node role is assigned to every EC2 instance Karpenter launches so it can join the cluster
+- **SQS + EventBridge** — four EventBridge rules route Spot interruption warnings, rebalance recommendations, state changes, and health events into an SQS queue that Karpenter polls for proactive interruption handling
+- **EC2NodeClass** — defines how nodes are provisioned (AMI, subnets, security groups, disk, IMDSv2); the node role ARN is referenced here
 - **NodePool** — defines what nodes to provision (instance families, sizes, capacity type, AZ constraints, CPU limits, consolidation policy); separate NodePools for On-Demand and Spot
-- **Spot instances** — up to 70% cheaper than On-Demand; Spot NodePools should specify wider instance family/size diversity to maximise availability
-- **Interruption handling** — Karpenter polls an SQS queue (fed by EventBridge rules) for Spot interruption warnings and proactively provisions a replacement node before draining the old one
-- **PodDisruptionBudget** — essential for zero-downtime Spot usage; limits how many pods can be evicted at once during node drains, keeping the service available throughout the migration
-- **`owned` subnet tag** — subnets must be tagged `owned` (not `shared`) for Karpenter to launch nodes into them; this is the most common setup mistake
+- **Spot instance diversity** — Spot NodePools should specify wider instance family/size ranges to maximise availability across fluctuating Spot capacity pools
+- **`owned` subnet tag** — subnets must be tagged `owned` (not `shared`) for Karpenter to launch nodes into them; the most common setup mistake

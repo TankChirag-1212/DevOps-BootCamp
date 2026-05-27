@@ -42,11 +42,11 @@ ExternalDNS needs permission to manage Route53 records. This is granted by:
 
 ### Terraform Setup (3 files)
 
-The ExternalDNS setup requires three Terraform files on top of the existing EKS cluster configuration:
+The ExternalDNS setup requires Terraform file External-dns.tf on top of the existing EKS cluster configuration:
 
-- **`c17-01`** — Creates the IAM role and attaches the `AmazonRoute53FullAccess` managed policy using the shared Pod Identity trust policy
-- **`c17-02`** — Creates the Pod Identity Association linking the IAM role to the `external-dns` ServiceAccount in the `external-dns` namespace
-- **`c17-03`** — Installs ExternalDNS as a managed EKS add-on using the latest compatible version, with `depends_on` ensuring the Pod Identity Agent and node group are ready first
+- It creates the IAM role and attaches the `AmazonRoute53FullAccess` managed policy using the shared Pod Identity trust policy
+- Also creates the Pod Identity Association linking the IAM role to the `external-dns` ServiceAccount in the `external-dns` namespace
+- Installs ExternalDNS as a managed EKS add-on using the latest compatible version, with `depends_on` ensuring the Pod Identity Agent and node group are ready first
 
 ---
 
@@ -74,10 +74,10 @@ The certificate ARN is referenced in the `alb.ingress.kubernetes.io/certificate-
 
 | Type | Validation | Use Case |
 |---|---|---|
-| **Domain Validated (DV)** | CA verifies domain ownership | General web apps ✅ |
+| **Domain Validated (DV)** | CA verifies domain ownership | General web apps |
 | **Organization Validated (OV)** | CA verifies company details | Business sites |
 | **Extended Validation (EV)** | Deep CA verification | Financial/banking |
-| **Self-Signed** | No CA involved | Not trusted by browsers ❌ |
+| **Self-Signed** | No CA involved | Not trusted by browsers |
 
 ---
 
@@ -92,16 +92,6 @@ ExternalDNS is added on top of the existing EKS add-on stack from previous days:
 | **EBS CSI Driver** | EKS Add-On | `kube-system` | Dynamic EBS volume provisioning |
 | **Secrets Store CSI + ASCP** | Helm | `kube-system` | Mounts Secrets Manager secrets into pods |
 | **ExternalDNS** | EKS Add-On | `external-dns` | Auto-creates/updates/deletes Route53 DNS records |
-
----
-
-## Topic 06: SecretProviderClass for Microservices
-
-When deploying a full microservice application, database credentials are fetched from AWS Secrets Manager via the Secrets Store CSI Driver and synced as Kubernetes Secrets that pods consume via `secretRef`.
-
-A `SecretProviderClass` resource defines which secret to fetch from Secrets Manager, which fields to extract using JMESPath, and what Kubernetes Secret to create from those fields. When a pod mounts the CSI volume, the driver fetches the secret via Pod Identity, creates the Kubernetes Secret, and the Deployment reads it as environment variables.
-
-Each microservice that needs database credentials gets its own `SecretProviderClass` — for example, the Catalog service gets a `catalog-db` secret with MySQL credentials, and the Orders service gets an `orders-db` secret with PostgreSQL credentials.
 
 ---
 

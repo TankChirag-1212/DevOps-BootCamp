@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karpenter-autoscale-demo
+  labels:
+    demo: karpenter-ondemand
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: autoscale-demo
+  template:
+    metadata:
+      labels:
+        app: autoscale-demo
+    spec:
+      # Force pods to on-demand nodes
+      nodeSelector:
+        karpenter.sh/capacity-type: on-demand   
+
+      containers:
+        - name: pause
+          image: public.ecr.aws/eks-distro/kubernetes/pause:3.9
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "256Mi"  
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
