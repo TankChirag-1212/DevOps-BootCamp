@@ -17,10 +17,10 @@ app:
   theme: teal  # Options: orange, default, green, teal
   
   endpoints:
-    catalog: http://catalog:80
-    carts: http://carts:80
-    checkout: http://checkout:80
-    orders: http://orders:80
+    # catalog: http://catalog:80
+    # carts: http://carts:80
+    # checkout: http://checkout:80
+    # orders: http://orders:80
 
   chat:
     enabled: false  # Not using AI chat features
