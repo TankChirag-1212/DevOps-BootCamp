@@ -22,8 +22,8 @@ app:
     dynamodb:
       tableName: chirag-Items
       createTable: false
+      region: ap-south-1                                  # ← NOW SUPPORTED!
       # endpoint: https://dynamodb.us-west-2.amazonaws.com  # ← NOW SUPPORTED!
-      region: ap-south-1                                    # ← NOW SUPPORTED!
 
 # ----------------------------------------------------------------------------
 # RESOURCE MANAGEMENT
