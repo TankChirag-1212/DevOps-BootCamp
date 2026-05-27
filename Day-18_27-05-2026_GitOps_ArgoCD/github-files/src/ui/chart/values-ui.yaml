@@ -8,7 +8,7 @@
 image:
   repository: 454143665149.dkr.ecr.ap-south-1.amazonaws.com/chirag-retail-store/ui
   pullPolicy: IfNotPresent
-  tag: sha-93517b4
+  tag: sha-df62ac4
 
 # ----------------------------------------------------------------------------
 # APPLICATION CONFIGURATION
