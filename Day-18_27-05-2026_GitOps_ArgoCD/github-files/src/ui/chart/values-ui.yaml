@@ -6,7 +6,7 @@
 # IMAGE CONFIGURATION
 # ----------------------------------------------------------------------------
 image:
-  repository: 180789647333.dkr.ecr.us-east-1.amazonaws.com/retail-store/ui
+  repository: 454143665149.dkr.ecr.ap-south-1.amazonaws.com/chirag-retail-store/ui
   pullPolicy: IfNotPresent
   tag: sha-93517b4
 
@@ -14,7 +14,7 @@ image:
 # APPLICATION CONFIGURATION
 # ----------------------------------------------------------------------------
 app:
-  theme: green  # Options: orange, default, green, teal
+  theme: teal  # Options: orange, default, green, teal
   
   endpoints:
     catalog: http://catalog:80
@@ -29,14 +29,16 @@ app:
 # INGRESS CONFIGURATION - AWS ALB
 # ----------------------------------------------------------------------------
 ingress:
+  name: chirag-retail-store-http-ip-mode
   enabled: true
   className: alb
   annotations:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/healthcheck-path: /actuator/health/liveness
+    alb.ingress.kubernetes.io/subnets: subnet-038ed162ccf05acf8, subnet-0d29e8f5dace43937
     # External DNS Annotation
-    external-dns.alpha.kubernetes.io/hostname: retailstore1.stacksimplify.com
+    # external-dns.alpha.kubernetes.io/hostname: retailstore1.stacksimplify.com
   tls: []
   hosts: []
 
@@ -65,7 +67,7 @@ autoscaling:
 # ----------------------------------------------------------------------------
 # Schedule pods on Karpenter On-Demand nodes for stability
 nodeSelector:
-  karpenter.sh/capacity-type: spot
+  karpenter.sh/capacity-type: On-Demand
 
 # ----------------------------------------------------------------------------
 # TOPOLOGY SPREAD CONSTRAINTS

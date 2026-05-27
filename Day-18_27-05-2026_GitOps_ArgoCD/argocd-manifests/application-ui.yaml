@@ -6,9 +6,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/stacksimplify/aws-devops-github-actions-ecr-argocd3.git
-    targetRevision: main
-    path: src/ui/chart
+    repoURL: https://github.com/TankChirag-1212/DevOps-BootCamp.git
+    targetRevision: master
+    path: Day-18_27-05-2026_GitOps_ArgoCD/github-files/src/ui/chart
     helm:
       valueFiles:
         - values-ui.yaml
