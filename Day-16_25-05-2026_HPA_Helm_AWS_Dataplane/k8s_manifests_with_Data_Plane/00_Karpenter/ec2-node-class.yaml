@@ -11,8 +11,8 @@ spec:
   role: "arn:aws:iam::454143665149:role/chirag-karpenter-node-role"
   # Auto-discover subnets (your cluster tags)
   subnetSelectorTerms:
-    - id: subnet-0b3a5f0dd7bcda6a9
-    - id: subnet-0a6a300267753a560
+    - id: subnet-038ed162ccf05acf8
+    - id: subnet-0d29e8f5dace43937
   # Auto-discover security groups
   securityGroupSelectorTerms:
     - tags:
