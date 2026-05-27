@@ -16,7 +16,7 @@ image:
 app:
   theme: teal  # Options: orange, default, green, teal
   
-  endpoints:
+  # endpoints:
     # catalog: http://catalog:80
     # carts: http://carts:80
     # checkout: http://checkout:80
