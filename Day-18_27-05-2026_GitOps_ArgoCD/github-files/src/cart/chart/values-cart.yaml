@@ -20,7 +20,7 @@ app:
   persistence:
     provider: dynamodb
     dynamodb:
-      tableName: chirag-Items
+      tableName: chirag-items
       createTable: false
       region: ap-south-1                                  # ← NOW SUPPORTED!
       # endpoint: https://dynamodb.us-west-2.amazonaws.com  # ← NOW SUPPORTED!
