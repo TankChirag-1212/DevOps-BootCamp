@@ -44,14 +44,17 @@ jobs:
           echo "latest = convenience tag for testing"
           echo "$SHA_TAG = immutable tag used in Helm values"
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build and push Docker images
-        run: |
-          for tag in $TAGS; do
-            IMAGE_URI="$IMAGE_BASE:$tag"
-            echo "Building and pushing $IMAGE_URI"
-            docker build -t $IMAGE_URI Day-18_27-05-2026_GitOps_ArgoCD/github-files/src/ui
-            docker push $IMAGE_URI
-          done
+        uses: docker/build-push-action@v6
+        with:
+          context: Day-18_27-05-2026_GitOps_ArgoCD/github-files/src/ui
+          push: true
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest,${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:sha-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Setup Git auth using GITHUB_TOKEN
         run: |
@@ -68,10 +71,10 @@ jobs:
           git diff --quiet || (
             git add chart/values-ui.yaml
             git commit -m "Update UI image tag to sha-${GITHUB_SHA::7}"
-            git push origin main
+            git push origin master
           )
 
       - name: CI Complete
         run: |
           echo "Image push and Git update done"
-          echo "Tags used: $TAGS"
+          echo "Tags used: latest, sha-${GITHUB_SHA::7}"
