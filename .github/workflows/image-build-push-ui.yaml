@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "master" ]
     paths:
-      - "Day-18_27-05-2026_GitOps_ArgoCD/github-files/src/ui/src/**"
+      - "Day-18_27-05-2026_GitOps_ArgoCD/github-files/src/ui/**"
       # - ".github/workflows/image-build-push-ui.yaml" # During testing phases only for prod comment this line
 
 permissions:
