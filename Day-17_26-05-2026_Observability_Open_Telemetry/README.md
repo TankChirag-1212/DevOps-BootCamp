@@ -213,6 +213,13 @@ kubectl get pods
 kubectl get ingress
 ```
 
+![Application accessible via ALB DNS](images/Screenshot%202026-05-26%20232123.png)
+
+![Topology endpoint — all 5 services healthy](images/Screenshot%202026-05-26%20232159.png)
+
+![All pods running via Helm](images/Screenshot%202026-05-27%20010733.png)
+
+
 ---
 
 ### 4. Deploy ADOT Collector for Traces
