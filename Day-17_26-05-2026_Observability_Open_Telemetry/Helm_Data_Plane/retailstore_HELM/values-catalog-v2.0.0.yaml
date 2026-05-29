@@ -22,10 +22,15 @@ app:
     database: "catalogdb"
 
     secret:
-      create: true
+      create: false  # ← CRITICAL: Don't create static secret
       name: catalog-db
-      username: mydbadmin
-      password: your-password
+      username: ""  # Not used when useSecretsManager=true
+      password: ""  # Not used when useSecretsManager=true
+      
+      useSecretsManager: true  # Enable Secrets Manager
+      secretsManager:
+        secretName: "chirag-retailstore-db-secret"
+        region: "ap-south-1"   
 
 # ----------------------------------------------------------------------------
 # RESOURCE MANAGEMENT
@@ -91,4 +96,4 @@ podDisruptionBudget:
 
 opentelemetry:
   enabled: true
-  instrumentation: "default-instrumentation"      
+  instrumentation: "default-instrumentation"  

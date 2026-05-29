@@ -27,7 +27,7 @@ app:
       create: true
       name: orders-db
       username: mydbadmin
-      password: kalyandb101
+      password: your-password
 
   # ----------------------------------------------------------------------------
   # MESSAGING CONFIGURATION

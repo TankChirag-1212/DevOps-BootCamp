@@ -18,14 +18,14 @@ mysql:
 app:
   persistence:
     provider: mysql
-    endpoint: "mydb3-rds-chirag.c42nr5ktk6ag.ap-south-1.rds.amazonaws.com"
+    endpoint: "mydb3.cxojydmxwly6.us-east-1.rds.amazonaws.com"
     database: "catalogdb"
 
     secret:
       create: true
       name: catalog-db
       username: mydbadmin
-      password: your-password
+      password: kalyandb101
 
 # ----------------------------------------------------------------------------
 # RESOURCE MANAGEMENT
