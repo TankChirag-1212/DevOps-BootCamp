@@ -1,5 +1,37 @@
 # Day 17 — Observability with OpenTelemetry (ADOT) on EKS
 
+### Course Architecture Images
+
+#### Architecture: ADOT Collector for Traces
+
+![alt text](./images/image-0.png)
+
+> ADOT Collector YAML structure
+
+![alt text](./images/image-1.png)
+
+> Sample X-Ray Traces
+
+![alt text](./images/image-2.png)
+
+#### Architecture: ADOT Collector for Logs
+
+![alt text](./images/image-3.png)
+
+> Open Telemetry Collector - Components
+
+![alt text](./images/image-4.png)
+
+#### Architecture: ADOT Collector for Metrics
+
+![alt text](./images/image-5.png)
+
+> ADOT Metrics Collector Yaml Structure
+
+![alt text](./images/image-6.png)
+
+----
+
 ## Topic 01: OpenTelemetry and ADOT Architecture
 
 **OpenTelemetry (OTEL)** is a vendor-neutral observability framework for collecting traces, metrics, and logs. **AWS Distro for OpenTelemetry (ADOT)** is AWS's supported distribution, installed as an EKS add-on that deploys the ADOT Operator into the cluster.

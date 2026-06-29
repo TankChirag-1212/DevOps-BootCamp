@@ -1,5 +1,21 @@
 # Day 10 — Kubernetes Ingress on AWS EKS
 
+### Course Architecture images
+
+> ALB Controller with PIA Architecture
+
+![alt text](./images/image.png)
+
+> Traffic Flow
+
+![alt text](./images/image-1.png)
+
+> Kubernetes Ingress HTTP
+
+![alt text](./images/image-2.png)
+
+----
+
 ## Topic 01: Understanding Kubernetes Ingress
 
 ### What is an Ingress?

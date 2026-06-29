@@ -1,5 +1,13 @@
 # Day 16 — HPA, PDB, Topology Spread Constraints & Helm Data Plane
 
+### Course Architecture Images
+
+> Horizontal Pod Autoscaler (HPA)?
+
+![alt text](image.png)
+
+----
+
 ## Topic 01: Horizontal Pod Autoscaler (HPA)
 
 The **Horizontal Pod Autoscaler (HPA)** automatically scales the number of pod replicas in a Deployment up or down based on observed CPU and memory utilisation metrics. It works by periodically querying the **Metrics Server** for resource usage and comparing it against the configured targets.

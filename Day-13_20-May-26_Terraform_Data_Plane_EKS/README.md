@@ -1,5 +1,14 @@
 # Day 13 — Terraform Data Plane & RetailStore Microservices on EKS
 
+### Course Architecture Images
+
+> Retail Store Application with AWS Dataplane
+
+![alt text](./images/image.png)
+
+![alt text](./images/image-1.png)
+
+----
 ## Topic 01: What is the Data Plane?
 
 In the context of this lab, the **Data Plane** refers to the AWS managed services that the RetailStore microservices depend on for persistence and messaging — provisioned separately from the EKS cluster itself using Terraform.

@@ -1,5 +1,21 @@
 # Day 11 — Helm: Package Manager for Kubernetes
 
+### Course Architecture images
+
+> Why Helm
+
+![alt text](image.png)
+
+> Helm Benefits
+
+![alt text](image-1.png)
+
+> Helm Workflow
+
+![alt text](image-2.png)
+
+----
+
 ## Lab Implementation
 
 ### 1. Authenticate to ECR Public & Install Initial Chart

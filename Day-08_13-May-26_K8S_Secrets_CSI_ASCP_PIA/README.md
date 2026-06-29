@@ -1,5 +1,19 @@
 # Day 08 — Kubernetes Secrets, CSI Driver, ASCP & Pod Identity Agent
 
+### Course Architecture images
+
+> Amazon EKS Pod Identity - High Level Flow
+
+![alt text](./images/image-3.png)
+
+![alt text](./images/image-1.png)
+
+> AWS Secret Manager Architecture
+
+![alt text](./images/image-2.png)
+
+----
+
 ## Topic 01: Kubernetes Secrets
 
 Kubernetes Secrets are stored in **etcd** with **Base64 encoding** — this is not encryption, just encoding, and can be easily decoded to retrieve the actual value. Secrets are created similarly to a ConfigMap with key-value pairs, the only difference being that values are Base64 encoded.

@@ -15,6 +15,17 @@ EKS solves this by:
 - Providing high availability across multiple AZs out of the box
 
 ---
+### Course Architecture images
+
+![alt text](./images/image.png)
+
+![alt text](./images/image-1.png)
+
+> Terraform Remote State Datasource
+
+![alt text](./images/image-2.png)
+
+---
 
 ## Topic 02: EKS Architecture Overview
 

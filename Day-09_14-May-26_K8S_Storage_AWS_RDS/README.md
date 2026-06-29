@@ -1,5 +1,21 @@
 # Day 09 — Kubernetes Persistent Storage with EBS CSI Driver
 
+### Course Architecture images
+
+> AWS EBS CSI Driver Architecture
+
+![alt text](./images/image.png)
+
+> AWS RDS MySQL Database Architecture
+
+![alt text](./images/image-1.png)
+
+> Traffic Flow
+
+![alt text](./images/image-2.png)
+
+----
+
 ## Topic 01: Kubernetes Storage — PV, PVC & StorageClass
 
 Kubernetes provides a storage abstraction layer to decouple application pods from the underlying storage infrastructure.

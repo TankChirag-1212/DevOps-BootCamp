@@ -1,5 +1,43 @@
 # Day 15 — Karpenter: Kubernetes Cluster Autoscaling on EKS
 
+### Course Architecture Images
+
+> Karpenter Architecture Diagram
+
+![alt text](./images/image.png)
+
+> Karpenter Install Diagram
+
+![alt text](./images/image-1.png)
+
+#### Karpenter Spot Instance - Interruption Handling
+
+> Stage 1:
+
+![alt text](./images/image-2.png)
+
+> Stage 2:
+
+![alt text](./images/image-3.png)
+
+> Stage 3:
+
+![alt text](./images/image-4.png)
+
+> Stage 4: 
+
+![alt text](./images/image-5.png)
+
+> Stage 5:
+
+![alt text](./images/image-6.png)
+
+> Stage 6:
+
+![alt text](./images/image-7.png)
+
+----
+
 ## Topic 01: What is Karpenter?
 
 **Karpenter** is an open-source, high-performance Kubernetes cluster autoscaler built specifically for AWS EKS. It watches for **unschedulable pods** and directly provisions EC2 instances to satisfy them — without needing pre-configured Auto Scaling Groups (ASGs).

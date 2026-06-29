@@ -1,5 +1,14 @@
 # Day 14 — ExternalDNS on EKS
 
+### Course Architecture Images
+
+> AWS EKS with External DNS Architecture
+
+![alt text](image.png)
+
+![alt text](image-1.png)
+
+----
 ## Topic 01: What is ExternalDNS?
 
 **ExternalDNS** is a Kubernetes controller that watches Ingress and Service resources and automatically creates, updates, and deletes DNS records in external DNS providers like AWS Route53, based on annotations defined on those resources.
